@@ -1,0 +1,92 @@
+version: "3.7"
+services:
+  app:
+    build:
+      args:
+        user: webuser
+        uid: 1000
+      context: ./
+      dockerfile: ./builds/Dockerfile.7.4-fpm
+    image: travellist
+    restart: unless-stopped
+    working_dir: /var/www/
+    ports:
+        - "9000:9000"
+    volumes:
+      - ./www:/var/www/
+      - ./logs/phpstorm/coverage:/opt/phpstorm-coverage
+    networks:
+      - laravel
+
+  mariadb:
+    build:
+      context: .
+      dockerfile: ./builds/Dockerfile.mariadb-10.3-dev
+    ports: 
+      - "33060:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      TZ: Europe/Moscow
+    command: mysqld --sql_mode=""
+    volumes:
+      - ./database:/var/lib/mysql
+      - ./logs/mysql:/var/log/mysql
+    networks:
+      - laravel
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    links:
+        - mariadb
+    ports:
+      - 80:80
+    volumes:
+      - ./www:/var/www/
+      - ./configs/nginx:/etc/nginx/conf.d
+    networks:
+      - laravel
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mariadb:db
+    ports:
+      - 8001:80
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      UPLOAD_LIMIT: 1G
+    networks:
+      - laravel
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - laravel
+      
+#  ngrok:
+#    image: shkoliar/ngrok:latest
+#    ports:
+#      - 4551:4551
+#    links:
+#      - nginx
+#    volumes:
+#      - ./configs/ngrok:/home/ngrok/.ngrok2
+#    environment:
+#      - DOMAIN=nginx
+#      - PORT=80
+#    networks:
+#      - laravel
+
+networks:
+  laravel:
+    driver: bridge

@@ -1,0 +1,4 @@
+FROM mariadb:10.3
+COPY ./configs/mariadb/my.cnf /etc/mysql/conf.d
+
+RUN chmod 0444 /etc/mysql/conf.d/my.cnf
